@@ -22,6 +22,22 @@ An **insanely interactive, audio-reactive 3D particle simulation** built complet
 
 ---
 
+## 🎮 How to Play / Instructions
+
+1. **Open the Live Demo** link above.
+2. **Grant Permissions:** Click "Allow" when your browser requests Camera and Microphone access. *(Required for Hand Tracking and Audio to work!)*
+3. **Bring the Noise!** 
+   - Click the **Mic** button to visualize your voice or room audio.
+   - Click the **Screen Share** button to visualize audio from a YouTube/Spotify tab.
+   - Or just **Upload an MP3** to play local music using the on-screen UI.
+4. **Use the Force (Hand Tracking):**
+   - 👆 **Push Particles:** Point your index finger directly at the camera to repel particles in 3D space.
+   - 🤚 **Air Swipe:** Drag your open hand left/right/up/down to rotate the entire simulation.
+   - 🤏 **Color Pinch:** Snap your thumb and index finger together to instantly randomize the neon color gradients!
+5. **Change Shapes:** Use the UI panel to instantly snap the particles into shapes like a DNA Helix, Saturn, or Fireworks.
+
+---
+
 ## ✨ Features
 
 ### ✋ AI Hand Tracking (MediaPipe)
