@@ -17,6 +17,9 @@
 ---
 
 # 🌌 Advanced Visualizer Engine
+
+🚀 **[Live Demo Available Here!](https://adityasing9.github.io/3D-Particle-Engine/v8)**
+
 ```
 🌐 No Install Required: Double-click index.html to run!
 ```
