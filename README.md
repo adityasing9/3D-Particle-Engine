@@ -15,14 +15,9 @@
 </p>
 
 ---
+Click Here 👉 **[Live Demo Available !](https://adityasing9.github.io/3D-Particle-Engine/v8)**
 
 # 🌌 Advanced Visualizer Engine
-
-🚀 **[Live Demo Available Here!](https://adityasing9.github.io/3D-Particle-Engine/v8)**
-
-```
-🌐 No Install Required: Double-click index.html to run!
-```
 An **insanely interactive, audio-reactive 3D particle simulation** built completely within a single, dependency-free HTML document. It uses machine learning for hand tracking and spatial web APIs for audio synchronization.
 
 ---
