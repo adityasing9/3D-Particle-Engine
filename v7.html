@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultimate 3D Particle Engine</title>
+
+    <!-- Three.js CORE -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- MediaPipe Hands & Camera Utils -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <style>
+        :root {
+            --bg-color: #030305;
+            --panel-bg: rgba(15, 15, 20, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.15);
+            --primary: #00e5ff;
+            --secondary: #ff00ff;
+            --text-light: #f0f0f0;
+            --text-muted: #888;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            overflow: hidden;
+            background-color: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-light);
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            background: var(--panel-bg);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 24px;
+            border-radius: 16px;
+            border: 1px solid var(--panel-border);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+            width: 260px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .ui-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .ui-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+
+        .ui-panel h1 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #fff;
+            text-align: center;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-light);
+            border: 1px solid var(--panel-border);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+        }
+
+        button.active {
+            background: rgba(0, 229, 255, 0.15);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: inset 0 0 10px rgba(0, 229, 255, 0.1);
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--panel-border);
+        }
+
+        .control-row label {
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: none;
+            margin-left: 5px;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid var(--panel-border);
+            border-radius: 50%;
+        }
+
+        .tip-text {
+            display: block;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: #aaa;
+            line-height: 1.4;
+            text-align: center;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+        }
+
+        #status-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 10;
+            background: var(--panel-bg);
+            padding: 10px 18px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ffaa00;
+            box-shadow: 0 0 10px #ffaa00;
+        }
+
+        .status-dot.active {
+            background-color: #00ffaa;
+            box-shadow: 0 0 10px #00ffaa;
+        }
+
+        .status-dot.error {
+            background-color: #ff0044;
+            box-shadow: 0 0 10px #ff0044;
+        }
+
+        .video-overlay {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 160px;
+            height: 120px;
+            border-radius: 12px;
+            overflow: hidden;
+            z-index: 10;
+            border: 1px solid var(--panel-border);
+            opacity: 0.2;
+            transition: opacity 0.3s, transform 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        .video-overlay:hover {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="ui-panel">
+        <h1>Particle Engine 5.0</h1>
+
+        <div style="display: flex; gap: 5px; margin-bottom: 12px; flex-wrap: wrap;">
+            <button id="micBtn" onclick="toggleMic()"
+                style="flex: 1; padding: 6px; font-size: 0.7rem; background: rgba(255,0,50,0.1); color:#ff3366; border-color:#ff3366;">🎤
+                Mic Room</button>
+            <button id="sysBtn" onclick="toggleSystemAudio()"
+                style="flex: 1; padding: 6px; font-size: 0.7rem; background: rgba(0,200,255,0.1); color:#00ccff; border-color:#00ccff;">🖥️
+                System</button>
+            <button id="fileBtn" onclick="document.getElementById('audioUpload').click()"
+                style="flex: 1; min-width: 100%; padding: 8px; font-size: 0.75rem; background: rgba(150,0,255,0.1); color:#cc66ff; border-color:#cc66ff;">📁
+                Upload MP3 Track</button>
+        </div>
+        <input type="file" id="audioUpload" accept="audio/*" style="display: none;" onchange="handleAudioUpload(event)">
+        <audio id="audioPlayer" style="display: none;" controls></audio>
+
+        <div class="btn-group">
+            <button class="active" onclick="setTemplate('mobius', this)">♾️ Möbius Strip</button>
+            <button onclick="setTemplate('galaxy', this)">🌌 Galaxy Spiral</button>
+            <button onclick="setTemplate('dna', this)">🧬 DNA Helix</button>
+            <button onclick="setTemplate('torus_knot', this)">🥨 Torus Knot</button>
+            <button onclick="setTemplate('fireworks', this)">🎆 Fireworks</button>
+            <button onclick="setTemplate('hearts', this)">💖 Hearts</button>
+            <button onclick="setTemplate('flowers', this)">🌸 Flowers</button>
+            <button onclick="setTemplate('saturn', this)">🪐 Saturn</button>
+            <button onclick="setTemplate('buddha', this)">🧘 Buddha</button>
+        </div>
+
+        <div class="control-row" style="justify-content: flex-start; gap: 10px;">
+            <label>Core Color:</label>
+            <input type="color" id="colorA" value="#00e5ff">
+        </div>
+
+        <div class="control-row"
+            style="margin-top:5px; padding-top:5px; border:none; justify-content: flex-start; gap: 10px;">
+            <label>Edge Color:</label>
+            <input type="color" id="colorB" value="#ff00ff">
+        </div>
+
+        <div class="tip-text">
+            💡 <b>Tip:</b> Pinch your thumb & index finger to randomize colors! Air-swipe 360 degrees to drag rotation.
+        </div>
+    </div>
+
+    <div id="status-bar">
+        <div id="status-dot" class="status-dot"></div>
+        <span id="status-text">Initializing Camera & AI Model...</span>
+    </div>
+
+    <div class="video-overlay">
+        <video id="input_video" autoplay playsinline></video>
+    </div>
+
+    <script>
+        /**
+         * GLOBAL CONFIGURATION
+         */
+        const CONFIG = {
+            particleCount: 20000,   // CRISP VISUALS RESTORED!
+            lerpSpeed: 0.04,
+            tensionSpeed: 0.12,
+            cameraZ: 80
+        };
+
+        function updateStatus(msg, state = 'normal') {
+            const statusText = document.getElementById('status-text');
+            const statusDot = document.getElementById('status-dot');
+            if (statusText) statusText.innerText = msg;
+            if (statusDot) statusDot.className = 'status-dot ' + state;
+        }
+
+        window.onerror = function (msg, url, lineNo) {
+            updateStatus("Crash: " + msg + " (Line " + lineNo + ")", 'error');
+            return false;
+        };
+
+        // UI Color Sync
+        let cA = new THREE.Color(document.getElementById('colorA').value);
+        let cB = new THREE.Color(document.getElementById('colorB').value);
+
+        document.getElementById('colorA').addEventListener('input', (e) => { cA.set(e.target.value); });
+        document.getElementById('colorB').addEventListener('input', (e) => { cB.set(e.target.value); });
+
+        function randomizeGradient() {
+            cA.setHSL(Math.random(), 0.9, 0.6);
+            cB.setHSL(Math.random(), 0.9, 0.6);
+            document.getElementById('colorA').value = "#" + cA.getHexString();
+            document.getElementById('colorB').value = "#" + cB.getHexString();
+        }
+
+        /**
+         * AUDIO REACTIVITY MULTI-SOURCE PIPELINE
+         */
+        let audioContext, analyser, mediaSource;
+        let isAudioActive = false;
+        let audioBass = 0; let audioTreble = 0; let audioVolume = 0;
+        const audioDataArray = new Uint8Array(128);
+
+        function initializeAudio() {
+            if (!audioContext) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                audioContext = new AudioCtx();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 256;
+            }
+            if (audioContext.state === 'suspended') audioContext.resume();
+        }
+
+        function resetAudioSources() {
+            document.getElementById('micBtn').style.boxShadow = 'none';
+            document.getElementById('sysBtn').style.boxShadow = 'none';
+            document.getElementById('fileBtn').style.boxShadow = 'none';
+            if (mediaSource) { mediaSource.disconnect(); mediaSource = null; }
+            document.getElementById('audioPlayer').pause();
+            isAudioActive = false;
+        }
+
+        function toggleMic() {
+            resetAudioSources();
+            navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                initializeAudio();
+                mediaSource = audioContext.createMediaStreamSource(stream);
+                mediaSource.connect(analyser);
+                isAudioActive = true;
+                document.getElementById('micBtn').style.boxShadow = '0 0 15px #ff3366';
+            }).catch(err => alert("Mic denied."));
+        }
+
+        function toggleSystemAudio() {
+            resetAudioSources();
+            navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }).then(stream => {
+                initializeAudio();
+                mediaSource = audioContext.createMediaStreamSource(stream);
+                mediaSource.connect(analyser);
+                isAudioActive = true;
+                document.getElementById('sysBtn').style.boxShadow = '0 0 15px #00ccff';
+            }).catch(err => alert("System audio denied. Check 'Share Audio'!"));
+        }
+
+        function handleAudioUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            resetAudioSources();
+            initializeAudio();
+
+            const player = document.getElementById('audioPlayer');
+            player.src = URL.createObjectURL(file);
+            player.play();
+
+            if (!player.sourceNode) {
+                player.sourceNode = audioContext.createMediaElementSource(player);
+                player.sourceNode.connect(analyser);
+                analyser.connect(audioContext.destination);
+            }
+            isAudioActive = true;
+            document.getElementById('fileBtn').style.boxShadow = '0 0 15px #cc66ff';
+        }
+
+        /**
+         * SCENE SETUP (Three.js) // RESTORED TO CRISP POINTSMATERIAL
+         */
+        const container = document.body;
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x030305, 0.005);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = CONFIG.cameraZ;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = false;
+
+        /**
+         * PARTICLE SYSTEM 
+         */
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(CONFIG.particleCount * 3);
+        const targetPositions = new Float32Array(CONFIG.particleCount * 3);
+        const currentPositions = new Float32Array(CONFIG.particleCount * 3);
+        const colors = new Float32Array(CONFIG.particleCount * 3);
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.35,
+            transparent: true,
+            opacity: 0.9,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            vertexColors: true // Crisp Radial Colors!
+        });
+
+        const particleSystem = new THREE.Points(geometry, material);
+        scene.add(particleSystem);
+
+        /**
+         * INTERACTIVE STATE VARIABLES
+         */
+        let tensionTarget = 1.0; let currentTension = 1.0;
+        let isHandDetected = false; let isPinching = false;
+        let handRepulsionCenter = new THREE.Vector3(0, 0, 0);
+        let activeTemplate = 'mobius';
+        let prevIndexX = null; let prevIndexY = null;
+        let swipeRotationX = 0; let swipeRotationY = 0;
+
+        /**
+         * SHAPE GENERATORS
+         */
+        const Generators = {
+            mobius: () => {
+                const u = Math.random() * Math.PI * 2;
+                const v = (Math.random() - 0.5) * 10;
+                const R = 20;
+                return { x: (R + v * Math.cos(u / 2)) * Math.cos(u), y: (R + v * Math.cos(u / 2)) * Math.sin(u), z: v * Math.sin(u / 2) };
+            },
+            galaxy: () => {
+                const arms = 4;
+                const r = 35 * Math.pow(Math.random(), 0.8);
+                const armAngle = (Math.floor(Math.random() * arms) / arms) * Math.PI * 2;
+                const theta = armAngle + r * 0.15;
+                const y = (Math.random() - 0.5) * 8 * Math.exp(-r / 15);
+                const scatterX = (Math.random() - 0.5) * 3 * Math.exp(-r / 20);
+                const scatterZ = (Math.random() - 0.5) * 3 * Math.exp(-r / 20);
+                return { x: Math.cos(theta) * r + scatterX, y: y, z: Math.sin(theta) * r + scatterZ };
+            },
+            dna: () => {
+                const t = (Math.random() - 0.5) * Math.PI * 18;
+                const radius = 8;
+                const twist = (Math.random() > 0.5) ? t : t + Math.PI;
+                const x = Math.cos(twist) * radius; const z = Math.sin(twist) * radius; const y = t * 2.5;
+                if (Math.random() > 0.85) {
+                    const rung = Math.random();
+                    return { x: (Math.cos(t) * radius) * (1 - rung) + (Math.cos(t + Math.PI) * radius) * rung, y, z: (Math.sin(t) * radius) * (1 - rung) + (Math.sin(t + Math.PI) * radius) * rung };
+                }
+                return { x: x + (Math.random() - 0.5), y: y + (Math.random() - 0.5), z: z + (Math.random() - 0.5) };
+            },
+            torus_knot: () => {
+                const t = Math.random() * Math.PI * 2;
+                const r = 14 * (2 + Math.cos(3 * t)) / 2;
+                const tube = 5 * Math.sqrt(Math.random()); const angle = Math.random() * Math.PI * 2;
+                return { x: r * Math.cos(2 * t) + tube * Math.cos(angle), y: r * Math.sin(2 * t) + tube * Math.sin(angle), z: 14 * Math.sin(3 * t) + (Math.random() - 0.5) * tube };
+            },
+            fireworks: () => {
+                const u = Math.random() * Math.PI * 2; const v = Math.acos(2 * Math.random() - 1);
+                const r = 30 * Math.pow(Math.random(), 1 / 3);
+                return { x: r * Math.sin(v) * Math.cos(u), y: r * Math.sin(v) * Math.sin(u), z: r * Math.cos(v) };
+            },
+            hearts: () => {
+                const t = Math.random() * Math.PI * 2;
+                const scale = 1.3; const fill = Math.random() > 0.4 ? Math.random() : 1.0;
+                return { x: 16 * Math.pow(Math.sin(t), 3) * scale * fill, y: (13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t) + 3) * scale * fill, z: (Math.random() - 0.5) * 6 * fill };
+            },
+            flowers: () => {
+                const u = Math.random() * Math.PI * 2; const v = Math.acos(2 * Math.random() - 1);
+                const r = 12 + 10 * Math.sin(5 * u) * Math.sin(5 * v);
+                const scale = 0.9;
+                return { x: r * Math.sin(v) * Math.cos(u) * scale, y: r * Math.sin(v) * Math.sin(u) * scale, z: r * Math.cos(v) * scale };
+            },
+            saturn: () => {
+                if (Math.random() > 0.35) {
+                    const r = 12 * Math.cbrt(Math.random()); const theta = Math.random() * Math.PI * 2; const phi = Math.acos(2 * Math.random() - 1);
+                    return { x: r * Math.sin(phi) * Math.cos(theta), y: r * Math.cos(phi), z: r * Math.sin(phi) * Math.sin(theta) };
+                } else {
+                    const r = 17 + Math.random() * 9; const theta = Math.random() * Math.PI * 2;
+                    return { x: r * Math.cos(theta), y: (Math.random() - 0.5) * 1.5, z: r * Math.sin(theta) };
+                }
+            },
+            buddha: () => {
+                const rand = Math.random();
+                if (rand < 0.3) {
+                    const r = 14 * Math.sqrt(Math.random()); const theta = Math.random() * Math.PI * 2;
+                    return { x: r * Math.cos(theta), y: -12 + Math.random() * 5, z: r * 0.5 * Math.sin(theta) };
+                } else if (rand < 0.6) {
+                    const r = 9 * Math.cbrt(Math.random()); const theta = Math.random() * Math.PI * 2; const y = -7 + Math.random() * 15; const s = 1 - (y + 7) / 25;
+                    return { x: r * s * Math.cos(theta), y, z: r * 0.7 * s * Math.sin(theta) };
+                } else if (rand < 0.75) {
+                    const r = 4.5 * Math.cbrt(Math.random()); const theta = Math.random() * Math.PI * 2; const phi = Math.acos(2 * Math.random() - 1);
+                    return { x: r * Math.sin(phi) * Math.cos(theta), y: 12 + r * Math.cos(phi), z: r * Math.sin(phi) * Math.sin(theta) };
+                } else {
+                    const r = 19 + Math.pow(Math.random(), 2) * 8; const theta = Math.random() * Math.PI * 2;
+                    return { x: r * Math.cos(theta), y: 5 + r * Math.sin(theta), z: -4 + (Math.random() - 0.5) * 2 };
+                }
+            }
+        };
+
+        function setTemplate(templateName, btnElement = null) {
+            activeTemplate = templateName;
+            const generator = Generators[templateName];
+
+            for (let i = 0; i < CONFIG.particleCount; i++) {
+                const pt = generator();
+                targetPositions[i * 3] = pt.x;
+                targetPositions[i * 3 + 1] = pt.y;
+                targetPositions[i * 3 + 2] = pt.z;
+            }
+            if (btnElement) {
+                document.querySelectorAll('.btn-group button:not(.audio-btn)').forEach(b => b.classList.remove('active'));
+                btnElement.classList.add('active');
+            }
+        }
+        setTemplate('mobius');
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        /**
+         * HAND TRACKING 
+         */
+        const videoElement = document.getElementById('input_video');
+        const handsAi = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+
+        const cameraProvider = new Camera(videoElement, {
+            onFrame: async () => { await handsAi.send({ image: videoElement }); },
+            width: 320, height: 240
+        });
+
+        handsAi.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.6, minTrackingConfidence: 0.6 });
+
+        handsAi.onResults((results) => {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                isHandDetected = true;
+                let totalTension = 0; let indexX = 0, indexY = 0;
+                let pinchDetectedThisFrame = false;
+
+                results.multiHandLandmarks.forEach(landmarks => {
+                    const wrist = landmarks[0];
+                    const thumb = landmarks[4];
+                    const index = landmarks[8];
+
+                    const pinchDist = Math.sqrt(Math.pow(thumb.x - index.x, 2) + Math.pow(thumb.y - index.y, 2) + Math.pow(thumb.z - index.z, 2));
+                    if (pinchDist < 0.05) pinchDetectedThisFrame = true;
+
+                    const tips = [4, 8, 12, 16, 20];
+                    let handDist = 0;
+                    tips.forEach(tipIdx => {
+                        const tip = landmarks[tipIdx];
+                        handDist += Math.sqrt(Math.pow(tip.x - wrist.x, 2) + Math.pow(tip.y - wrist.y, 2) + Math.pow(tip.z - wrist.z, 2));
+                    });
+
+                    totalTension += handDist / tips.length;
+                    indexX += index.x; indexY += index.y;
+                });
+
+                if (pinchDetectedThisFrame && !isPinching) {
+                    isPinching = true;
+                    randomizeGradient();
+                } else if (!pinchDetectedThisFrame) {
+                    isPinching = false;
+                }
+
+                const avgTension = totalTension / results.multiHandLandmarks.length;
+                const finalIndexX = indexX / results.multiHandLandmarks.length;
+                const finalIndexY = indexY / results.multiHandLandmarks.length;
+
+                let normalized = (avgTension - 0.15) / 0.45;
+                tensionTarget = 0.5 + Math.max(0, Math.min(1, normalized)) * 1.5;
+
+                if (prevIndexX !== null && prevIndexY !== null) {
+                    swipeRotationY -= (finalIndexX - prevIndexX) * Math.PI * 3.0;
+                    swipeRotationX += (finalIndexY - prevIndexY) * Math.PI * 3.0;
+                }
+                prevIndexX = finalIndexX;
+                prevIndexY = finalIndexY;
+
+                handRepulsionCenter.x = -(finalIndexX - 0.5) * 50;
+                handRepulsionCenter.y = -(finalIndexY - 0.5) * 50;
+
+                if (!isPinching) {
+                    updateStatus(`Tracking ${results.multiHandLandmarks.length} hand(s) | Tension: ${Math.round(tensionTarget * 100)}`, 'active');
+                }
+            } else {
+                isHandDetected = false;
+                prevIndexX = null; prevIndexY = null;
+                tensionTarget = 1.0;
+                handRepulsionCenter.set(0, 0, 0);
+                updateStatus("No hands detected. Idle mode.", 'normal');
+            }
+        });
+
+        let cameraStarted = false;
+        cameraProvider.start()
+            .then(() => { cameraStarted = true; updateStatus("Waiting for hands...", 'normal'); })
+            .catch(err => { cameraStarted = true; updateStatus("Camera access denied.", 'error'); });
+
+        setTimeout(() => { if (!cameraStarted) updateStatus("Camera timeout.", 'error'); }, 8000);
+
+        /**
+         * RENDER & ANIMATION LOOP
+         */
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            if (isAudioActive && analyser) {
+                analyser.getByteFrequencyData(audioDataArray);
+                let bSum = 0, tSum = 0, tot = 0;
+                for (let i = 0; i < 128; i++) {
+                    tot += audioDataArray[i];
+                    if (i < 10) bSum += audioDataArray[i];
+                    if (i > 60 && i < 100) tSum += audioDataArray[i];
+                }
+                audioVolume = (tot / 128) / 255.0;
+                audioBass = (bSum / 10 / 255.0);
+                audioTreble = (tSum / 40 / 255.0);
+                if (audioBass > 0.85) currentTension += 0.08;
+            } else {
+                audioBass = 0; audioTreble = 0; audioVolume = 0;
+            }
+
+            currentTension += (tensionTarget - currentTension) * CONFIG.tensionSpeed;
+
+            let finalScale = currentTension + (audioBass * 1.2) + (audioVolume * 0.5);
+            particleSystem.scale.set(finalScale, finalScale, finalScale);
+
+            let curX = particleSystem.rotation.x;
+            let curY = particleSystem.rotation.y;
+            if (isHandDetected) {
+                curX += (swipeRotationX - curX) * 0.15;
+                curY += (swipeRotationY - curY) * 0.15;
+            } else {
+                curX *= 0.90; curY *= 0.90;
+            }
+            particleSystem.rotation.x = curX;
+            particleSystem.rotation.y = curY;
+
+            const posArray = geometry.attributes.position.array;
+            const colArray = geometry.attributes.color.array;
+
+            const dr = cB.r - cA.r; const dg = cB.g - cA.g; const db = cB.b - cA.b;
+
+            for (let i = 0; i < CONFIG.particleCount; i++) {
+                const i3 = i * 3;
+
+                // Audio Scatter 
+                const audioScatter = audioTreble > 0.3 ? (Math.random() - 0.5) * audioTreble * 6 : 0;
+
+                // Volume Push
+                const volPushX = currentPositions[i3] * audioVolume * 0.15;
+                const volPushY = currentPositions[i3 + 1] * audioVolume * 0.15;
+                const volPushZ = currentPositions[i3 + 2] * audioVolume * 0.15;
+
+                // Firefly Effect
+                const swarmX = Math.sin(time * 0.8 + i * 0.01) * 1.5;
+                const swarmY = Math.cos(time * 0.9 + i * 0.02) * 1.5;
+                const swarmZ = Math.sin(time * 1.0 + i * 0.03) * 1.5;
+
+                // Hand Repulsion
+                let repulseX = 0, repulseY = 0, repulseZ = 0;
+                if (isHandDetected && !isPinching) {
+                    const dx = currentPositions[i3] - handRepulsionCenter.x;
+                    const dy = currentPositions[i3 + 1] - handRepulsionCenter.y;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq < 150) {
+                        const force = (150 - distSq) / 150;
+                        repulseX = (dx / Math.sqrt(distSq)) * force * 2;
+                        repulseY = (dy / Math.sqrt(distSq)) * force * 2;
+                    }
+                }
+
+                currentPositions[i3] += (targetPositions[i3] - currentPositions[i3]) * CONFIG.lerpSpeed;
+                currentPositions[i3 + 1] += (targetPositions[i3 + 1] - currentPositions[i3 + 1]) * CONFIG.lerpSpeed;
+                currentPositions[i3 + 2] += (targetPositions[i3 + 2] - currentPositions[i3 + 2]) * CONFIG.lerpSpeed;
+
+                posArray[i3] = currentPositions[i3] + swarmX + repulseX + audioScatter + volPushX;
+                posArray[i3 + 1] = currentPositions[i3 + 1] + swarmY + repulseY + audioScatter + volPushY;
+                posArray[i3 + 2] = currentPositions[i3 + 2] + swarmZ + repulseZ + audioScatter + volPushZ;
+
+                const distObj = Math.sqrt(currentPositions[i3] * currentPositions[i3] + currentPositions[i3 + 1] * currentPositions[i3 + 1] + currentPositions[i3 + 2] * currentPositions[i3 + 2]);
+                const mix = Math.min(1.0, distObj / 25.0);
+
+                colArray[i3] = cA.r + dr * mix;
+                colArray[i3 + 1] = cA.g + dg * mix;
+                colArray[i3 + 2] = cA.b + db * mix;
+            }
+
+            geometry.attributes.position.needsUpdate = true;
+            geometry.attributes.color.needsUpdate = true;
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+
+</html>
